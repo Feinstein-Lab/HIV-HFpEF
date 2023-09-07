@@ -1,6 +1,6 @@
 library(Seurat)
 library(scDblFinder)
-###QUALIT CONTROL ON COMBINED SAMPLES#####
+###QUALITY CONTROL ON COMBINED SAMPLES#####
 # Add in the Mitochondrial PCT% information
 Full_srt$percent.mt <- PercentageFeatureSet(Full_srt, pattern = "^MT-")
 # nCount_RNA is the number of UMI counts in a cell
@@ -25,9 +25,10 @@ VlnPlot(Full_srt, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
 
 ### REMOVE DOUBLETS ###
 Full_sce <- as.SingleCellExperiment(Full_srt)
-Full_sce <- scDblFinder(Full_sce, verbose = TRUE, nfeatures = 1000)
+Full_sce <- scDblFinder(Full_sce, verbose = TRUE, nfeatures = 1000, samples = Full_sce$orig.ident)
 #Total number of Doublets
 table(Full_sce$scDblFinder.class)
+
 #Add back into seurat
 Full_srt_clean <- as.Seurat(Full_sce)
 # Check the number of cell before subset
@@ -36,6 +37,12 @@ dim(Full_srt_clean)
 Full_srt_clean <- subset(Full_srt_clean, subset = scDblFinder.class == "singlet")
 # Check the number after subset
 dim(Full_srt_clean)
+
+VlnPlot(Full_srt_clean, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), 
+        ncol = 3)
+
+table(Full_srt_clean$orig.ident)
+
 
 ### NORMALIZE & SCALE AGAIN ###
 # Log-transform the counts
@@ -119,9 +126,11 @@ Full_srt_clean_List.anchors <- FindIntegrationAnchors(object.list = Full_srt_cle
                                                       anchor.features = features)
 full_srt.int <- IntegrateData(anchorset = Full_srt_clean_List.anchors, 
                               normalization.method = "SCT")
+#Save seurat object
+saveRDS(full_srt.int, file = "full_srt.int.rds")
 
-### NORMALIZE & SCALE AGAIN ###
-# Run PCA
+
+ # Run PCA
 full_srt.int <- RunPCA(full_srt.int)
 #Find Neighbours
 full_srt.int <- FindNeighbors(full_srt.int, k.param = 50, dims = 1:50)
